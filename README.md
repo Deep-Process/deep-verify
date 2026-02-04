@@ -1,87 +1,95 @@
-# Deep Verify V3.0
+# Deep Verify
+![Deep Verify Logo](img/logo_small.png)
 
-![Deep Verify Logo](logo_small.png)
+A structured second-pass verification workflow for LLM-generated code and documents.
 
-**Deep Verify** is a rigorous, universal verification workflow designed for **LLM CLIs (e.g., Gemini CLI, Claude CLI)**. It transforms the verification of software artifacts—from code and documentation to architecture and product requirements—into a structured, evidence-based process.
+## The problem
 
-Unlike standard "reviews" which can be subjective, Deep Verify uses a **Pattern Intelligence** engine and a quantitative **Evidence Score** to provide objective verdicts.
+When I work with LLMs on complex projects, the biggest issues aren't syntax errors.
+They're subtle logic problems that look correct until you slow down and trace the assumptions.
 
-## ⚠️ Prerequisites: LLM Required
+I tried splitting tasks into smaller chunks, but that doesn't help when a small change
+affects distant parts of the codebase. Sometimes the LLM ignores instructions or does
+things its own way. I needed a way to catch these issues before they propagate.
 
-**This is NOT a standard executable.** Deep Verify is a **Prompt Engineering Workflow**.
+## What this is
 
-To use it, you must have a Large Language Model (LLM) agent capable of reading files and following complex instructions, such as **Gemini CLI**, **Claude CLI**, or **Ollama** (with a capable model).
+Deep Verify is a prompt-based workflow that forces the LLM to systematically verify
+a piece of code or document by:
 
-## 🚀 How to Use (Execution)
+1. Checking for vocabulary inconsistencies and undefined terms
+2. Tracing assumptions and looking for contradictions
+3. Matching against known impossibility patterns (e.g., "claims CAP theorem compliance while also claiming strong consistency + availability + partition tolerance")
+4. Running adversarial review on its own findings (to avoid false positives)
 
-Deep Verify is designed for interactive use within an LLM CLI environment.
+The output is a structured report with exact quotes and a numeric score, not just "looks good."
 
-### 1. Start your LLM CLI
-Launch your preferred agent (e.g., **Gemini CLI**, **Claude CLI**, or others) in your terminal.
+## How to use it
 
-### 2. Run the Workflow
-Instruct the agent to use the master workflow file to verify your target file or directory. You can also specify particular aspects to focus on, such as **consistency**, **logical gaps**, **missing edge cases**, or **architectural alignment**.
+You need an LLM CLI like Claude Code, Gemini CLI, or similar.
 
-**Basic Command:**
-*   `Use the process in @src/core/deep-verify/workflow.md to verify [path/to/target]`
+```
+Use the process in src/core/deep-verify/workflow.md to verify path/to/file.py
+```
 
-**Example with specific focus:**
-*   `@gemini use @src/core/deep-verify/workflow.md to verify src/api/ and pay special attention to consistency, missing edge cases, and potential logical holes.`
+Or with specific focus:
 
-### 3. Command Shortcut (Simplest)
-If you have the shortcut configured, just type the command followed by the path:
-*   **`/deep-verify [TARGET_FILE]`**
+```
+Verify src/api/ and pay attention to consistency with the PRD in docs/requirements.md
+```
 
-Example: `/deep-verify src/auth_service.py`
+## What it's good at
 
----
+- Finding contradictions between what the code does and what it claims to do
+- Catching vocabulary drift (same term used differently in different places)
+- Verifying that assumptions match reality
+- Checking code against design documents
 
-## 🛠️ The 6-Phase Workflow
+## Limitations
 
-1.  **Phase 0: Setup** — Interactive configuration. Assess stakes (Low/Med/High), mitigate bias (Blind Mode), and select execution mode.
-2.  **Phase 1: Pattern Scan** — Rapidly identify "Red Flags" using Tier 1 methods.
-3.  **Phase 2: Targeted Analysis** — Deep dives based on Phase 1 signals (e.g., "Absolute Claims" trigger "Theoretical Impossibility Check").
-4.  **Phase 3: Adversarial Validation (MANDATORY)** — Critical attack on findings ("Devil's Advocate") to ensure they survive scrutiny.
-5.  **Phase 4: Verdict** — Final calculation of the Evidence Score (S).
-6.  **Phase 5: Report** — Generation of a standardized report with actionable recommendations.
-7.  **Phase 6: Pattern Candidate** — (Deep Mode Only) Evaluation of new impossibility patterns for the library.
+This isn't magic. Some things to know:
 
----
+- **Scope matters.** It's designed to finish in bounded time. If you point it at a huge codebase, it will find some issues and stop. Better to verify smaller areas.
+- **It's opinionated.** The scoring and thresholds work for me. You might want different sensitivity.
+- **Still requires judgment.** UNCERTAIN verdicts are common. The tool surfaces issues, you decide what matters.
+- **Pattern library is limited.** The impossibility patterns cover common cases (CAP theorem, cryptographic impossibilities, etc.) but won't catch domain-specific issues unless you add them.
 
-## 🧠 Core Intelligence Components
+## Example output
 
-*   **Pattern Library (`data/pattern-library.yaml`):** The single source of truth for **Known Impossibilities**. Matches grant score bonuses and enable Early Exit (REJECT).
-*   **Pattern Update Protocol (`data/pattern-update-protocol.yaml`):** The "Immune System" for the library. Ensures only findings grounded in theorems, definitions, or regulations become patterns.
-*   **Decision Thresholds (`data/decision-thresholds.yaml`):** Defines verdict logic (e.g., `REJECT if S ≥ 6`). Configures stakes assessment and escalation triggers.
-*   **Report Template (`data/report-template.md`):** Standardizes output, requiring exact quotes, score math, and explicit "not checked" sections.
+```
+VERDICT: REJECT (Score: 7.5)
 
----
+CRITICAL: Claims PFS (Perfect Forward Secrecy) but has key escrow mechanism
+  Quote: "Perfect forward secrecy ensures past sessions cannot be decrypted" (Sec 2.1)
+  Quote: "Enterprise key recovery allows retrieval of session keys" (Sec 4.3)
+  Pattern match: DC-001 (PFS_ESCROW) - definitionally mutually exclusive
 
-## 🌐 Supported Domains
+IMPORTANT: "Forward secrecy" used inconsistently
+  Quote: "forward secrecy" (Sec 2.1) vs "recoverable forward secrecy" (Sec 4.3)
+  No such standard term exists
 
-Deep Verify includes specialized pattern libraries for specific domains:
+Adversarial review: 0/4 challenges weakened these findings
+```
 
-*   **Core:** Universal impossibilities (Theorems, Logical Contradictions).
-*   **Agile Process:** Sprint planning, user stories, and estimation gaming.
-*   **Documentation:** API consistency, code examples, and versioning.
-*   **Fiction:** Narrative consistency, time travel logic, and world-building rules.
-*   **IaC:** Infrastructure as Code (Terraform/CloudFormation) state and drift issues.
-*   **Medical Research:** Clinical trials, FDA/HIPAA compliance, and statistical validity.
-*   **Microservices:** Distributed systems, CAP theorem, and API contracts.
-*   **PRD:** Product requirements, scope creep, and stakeholder conflicts.
+## Project structure
 
----
+```
+src/core/deep-verify/
+├── workflow.md              # Main workflow (point the LLM here)
+├── data/
+│   ├── pattern-library.yaml # Known impossibility patterns
+│   ├── method-procedures/   # Individual verification methods
+│   └── report-template.md   # Output format
+└── steps/                   # Detailed phase documentation
+```
 
-## 📊 Scoring System
+## Works well with
 
-| Severity | Points | Description |
-| :--- | :--- | :--- |
-| **CRITICAL** | `+3` | Fundamental flaw. Alone justifies REJECT. |
-| **IMPORTANT** | `+1` | Significant issue. 2-3 together justify REJECT. |
-| **MINOR** | `+0.3` | Style/clarity issue. |
-| **Clean Pass** | `-0.5` | Method executed and found no issues. |
+- Pre-commit hooks (quick mode for fast sanity checks)
+- PR reviews (verify changed files before merge)
+- Checking AI-generated code before integration
+- Validating that implementation matches requirements
 
-**Verdict:** `REJECT` if S ≥ 6 | `ACCEPT` if S ≤ -3 | `UNCERTAIN` otherwise.
+## License
 
----
-*Documentation generated by Deep Verify Agent.*
+MIT
