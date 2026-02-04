@@ -56,6 +56,8 @@ This isn't magic. Some things to know:
 
 ## Example output
 
+![Example verification report](img/result.png)
+
 ```
 VERDICT: REJECT (Score: 7.5)
 
